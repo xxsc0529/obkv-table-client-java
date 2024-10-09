@@ -63,7 +63,7 @@ public class ContainerTestBase {
 
     @SuppressWarnings({ "unchecked", "rawtypes" })
     protected static GenericContainer createOceanBaseCEContainer() {
-        GenericContainer container = new GenericContainer("oceanbase/oceanbase-ce:4.2.1_bp2")
+        GenericContainer container = new GenericContainer("oceanbase/oceanbase-ce:latest")
             .withNetwork(NETWORK)
             .withExposedPorts(2881, 2882, 8080)
             .withEnv("MODE", "slim")

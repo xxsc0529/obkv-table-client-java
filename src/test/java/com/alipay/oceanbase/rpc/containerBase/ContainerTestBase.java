@@ -147,6 +147,6 @@ public class ContainerTestBase {
                         + ":"
                         + container.getMappedPort(SQL_PORT)
                         + "/?useUnicode=true&characterEncoding=UTF-8&useSSL=false";
-        return DriverManager.getConnection(jdbcUrl, "root", SYS_PASSWORD);
+        return DriverManager.getConnection(jdbcUrl, "root@sys", SYS_PASSWORD);
     }
 }

@@ -74,9 +74,9 @@ public class ContainerTestBase {
                                     .forPath(CONFIG_URL_PATH));
 
     @SuppressWarnings({"unchecked", "rawtypes"})
-    protected static final GenericContainer container = new GenericContainer("oceanbase/oceanbase-ce:latest")
+    protected static final GenericContainer CONTAINER = new GenericContainer("oceanbase/oceanbase-ce:latest")
             .withNetwork(NETWORK)
-            .withExposedPorts(2881, 2882, 8080)
+            .withExposedPorts(SQL_PORT, SQL_PORT+1, CONFIG_SERVER_PORT)
             .withEnv("MODE", "slim")
             .withEnv("OB_CLUSTER_NAME", CLUSTER_NAME)
             .withEnv("OB_ROOT_PASSWORD", SYS_PASSWORD)
@@ -89,12 +89,12 @@ public class ContainerTestBase {
 
     public static String getConfigServerAddress() {
         CONFIG_SERVER.start();
-        return getConfigServerAddress(CONFIG_SERVER);
+        return getConfigUrlPath(CONFIG_SERVER);
     }
 
-    public static String getConfigServerAddress(GenericContainer<?> container) {
+    public static String getConfigUrlPath(GenericContainer<?> container) {
         String ip = getContainerIP(container);
-        return "http://" + ip + ":" + CONFIG_SERVER_PORT;
+        return "http://" + ip + ":" + CONFIG_SERVER_PORT + CONFIG_URL_PATH;
     }
 
     public static String getContainerIP(GenericContainer<?> container) {
@@ -112,41 +112,17 @@ public class ContainerTestBase {
     @BeforeClass
     public static void before() {
         CONFIG_SERVER.start();
-        container.withEnv("OB_CONFIGSERVER_ADDRESS", getConfigServerAddress()).start();
+        CONTAINER.withEnv("OB_CONFIGSERVER_ADDRESS", getConfigServerAddress()).start();
         if (!ObTableClientTestUtil.FULL_USER_NAME.equals("full-user-name")) {
             return;
         }
 
         // Set config
-        ObTableClientTestUtil.PARAM_URL = getSysParameter("obconfig_url") + "&database=test";
-        logger.info("PARAM_URL的值是=====" + getSysParameter("obconfig_url") + "&database=test");
+        ObTableClientTestUtil.PARAM_URL = getConfigServerAddress() + "&database=test";
+        logger.info("PARAM_URL的值是=====" + getConfigServerAddress() + "&database=test");
         ObTableClientTestUtil.FULL_USER_NAME = TEST_USERNAME;
         ObTableClientTestUtil.PASSWORD = "";
         ObTableClientTestUtil.PROXY_SYS_USER_NAME = "root";
         ObTableClientTestUtil.PROXY_SYS_USER_PASSWORD = SYS_PASSWORD;
-    }
-
-    public static String getSysParameter(String parameter) {
-        try (Connection connection = getSysJdbcConnection();
-             Statement statement = connection.createStatement()) {
-            String sql = String.format("SHOW PARAMETERS LIKE '%s'", parameter);
-            ResultSet rs = statement.executeQuery(sql);
-            if (rs.next()) {
-                return rs.getString("VALUE");
-            }
-            throw new RuntimeException("Parameter '" + parameter + "' not found");
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    public static Connection getSysJdbcConnection() throws SQLException {
-        String jdbcUrl =
-                "jdbc:mysql://"
-                        + container.getHost()
-                        + ":"
-                        + container.getMappedPort(SQL_PORT)
-                        + "/?useUnicode=true&characterEncoding=UTF-8&useSSL=false";
-        return DriverManager.getConnection(jdbcUrl, "root@sys", SYS_PASSWORD);
     }
 }

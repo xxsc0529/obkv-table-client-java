@@ -46,6 +46,7 @@ import org.testcontainers.containers.wait.strategy.HttpWaitStrategy;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.utility.MountableFile;
 
+import java.sql.*;
 import java.time.Duration;
 import java.util.Arrays;
 
@@ -53,6 +54,7 @@ public class ContainerTestBase {
 
     private static final Logger logger = LoggerFactory
             .getLogger(ContainerTestBase.class);
+    protected static final int SQL_PORT = 2881;
     protected static final int CONFIG_SERVER_PORT = 8080;
     protected static final String CONFIG_URL_PATH = "/services?Action=GetObProxyConfig";
     protected static final Network NETWORK = Network.newNetwork();
@@ -72,22 +74,18 @@ public class ContainerTestBase {
                                     .forPath(CONFIG_URL_PATH));
 
     @SuppressWarnings({"unchecked", "rawtypes"})
-    protected static GenericContainer createOceanBaseCEContainer() {
-        GenericContainer container = new GenericContainer("oceanbase/oceanbase-ce:latest")
-                .withNetwork(NETWORK)
-                .withExposedPorts(2881, 2882, 8080)
-                .withEnv("MODE", "slim")
-                .withEnv("OB_CLUSTER_NAME", CLUSTER_NAME)
-                .withEnv("OB_ROOT_PASSWORD", SYS_PASSWORD)
-                .withCopyFileToContainer(MountableFile.forClasspathResource("ci.sql"),
-                        "/root/boot/init.d/init.sql")
-                .waitingFor(
-                        Wait.forLogMessage(".*boot success!.*", 1)
-                                .withStartupTimeout(Duration.ofMinutes(5)))
-                .withLogConsumer(new Slf4jLogConsumer(logger));
-        container.setPortBindings(Arrays.asList("2881:2881", "2882:2882", "8080:8080"));
-        return container;
-    }
+    protected static final GenericContainer container = new GenericContainer("oceanbase/oceanbase-ce:latest")
+            .withNetwork(NETWORK)
+            .withExposedPorts(2881, 2882, 8080)
+            .withEnv("MODE", "slim")
+            .withEnv("OB_CLUSTER_NAME", CLUSTER_NAME)
+            .withEnv("OB_ROOT_PASSWORD", SYS_PASSWORD)
+            .withCopyFileToContainer(MountableFile.forClasspathResource("ci.sql"),
+                    "/root/boot/init.d/init.sql")
+            .waitingFor(
+                    Wait.forLogMessage(".*boot success!.*", 1)
+                            .withStartupTimeout(Duration.ofMinutes(5)))
+            .withLogConsumer(new Slf4jLogConsumer(logger));
 
     public static String getConfigServerAddress() {
         CONFIG_SERVER.start();
@@ -114,17 +112,40 @@ public class ContainerTestBase {
     @BeforeClass
     public static void before() {
         CONFIG_SERVER.start();
-        createOceanBaseCEContainer().withEnv("OB_CONFIGSERVER_ADDRESS", getConfigServerAddress()).start();
+        container.withEnv("OB_CONFIGSERVER_ADDRESS", getConfigServerAddress()).start();
         if (!ObTableClientTestUtil.FULL_USER_NAME.equals("full-user-name")) {
             return;
         }
 
         // Set config
-        ObTableClientTestUtil.PARAM_URL = "http://127.0.0.1:8080/services?Action=ObRootServiceInfo&ObCluster="
-                + CLUSTER_NAME + "&database=test";
+        ObTableClientTestUtil.PARAM_URL = getSysParameter("obconfig_url") + "&database=test";
         ObTableClientTestUtil.FULL_USER_NAME = TEST_USERNAME;
         ObTableClientTestUtil.PASSWORD = "";
         ObTableClientTestUtil.PROXY_SYS_USER_NAME = "root";
         ObTableClientTestUtil.PROXY_SYS_USER_PASSWORD = SYS_PASSWORD;
+    }
+
+    public static String getSysParameter(String parameter) {
+        try (Connection connection = getSysJdbcConnection();
+             Statement statement = connection.createStatement()) {
+            String sql = String.format("SHOW PARAMETERS LIKE '%s'", parameter);
+            ResultSet rs = statement.executeQuery(sql);
+            if (rs.next()) {
+                return rs.getString("VALUE");
+            }
+            throw new RuntimeException("Parameter '" + parameter + "' not found");
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static Connection getSysJdbcConnection() throws SQLException {
+        String jdbcUrl =
+                "jdbc:mysql://"
+                        + container.getHost()
+                        + ":"
+                        + container.getMappedPort(SQL_PORT)
+                        + "/?useUnicode=true&characterEncoding=UTF-8&useSSL=false";
+        return DriverManager.getConnection(jdbcUrl, "root", SYS_PASSWORD);
     }
 }

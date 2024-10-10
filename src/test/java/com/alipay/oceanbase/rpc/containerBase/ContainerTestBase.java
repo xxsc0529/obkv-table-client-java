@@ -46,9 +46,7 @@ import org.testcontainers.containers.wait.strategy.HttpWaitStrategy;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.utility.MountableFile;
 
-import java.sql.*;
 import java.time.Duration;
-import java.util.Arrays;
 
 public class ContainerTestBase {
 
@@ -116,10 +114,8 @@ public class ContainerTestBase {
         if (!ObTableClientTestUtil.FULL_USER_NAME.equals("full-user-name")) {
             return;
         }
-
         // Set config
         ObTableClientTestUtil.PARAM_URL = getConfigServerAddress() + "&database=test";
-        logger.info("PARAM_URL的值是=====" + getConfigServerAddress() + "&database=test");
         ObTableClientTestUtil.FULL_USER_NAME = TEST_USERNAME;
         ObTableClientTestUtil.PASSWORD = "";
         ObTableClientTestUtil.PROXY_SYS_USER_NAME = "root";

@@ -119,6 +119,7 @@ public class ContainerTestBase {
 
         // Set config
         ObTableClientTestUtil.PARAM_URL = getSysParameter("obconfig_url") + "&database=test";
+        logger.info("PARAM_URL的值是=====" + getSysParameter("obconfig_url") + "&database=test");
         ObTableClientTestUtil.FULL_USER_NAME = TEST_USERNAME;
         ObTableClientTestUtil.PASSWORD = "";
         ObTableClientTestUtil.PROXY_SYS_USER_NAME = "root";

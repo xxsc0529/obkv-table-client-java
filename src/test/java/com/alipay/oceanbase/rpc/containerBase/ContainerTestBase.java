@@ -78,6 +78,8 @@ public class ContainerTestBase {
             .withEnv("MODE", "slim")
             .withEnv("OB_CLUSTER_NAME", CLUSTER_NAME)
             .withEnv("OB_ROOT_PASSWORD", SYS_PASSWORD)
+            .withEnv("OB_DATAFILE_SIZE", "2G")
+            .withEnv("OB_LOG_DISK_SIZE", "4G")
             .withCopyFileToContainer(MountableFile.forClasspathResource("ci.sql"),
                     "/root/boot/init.d/init.sql")
             .waitingFor(
